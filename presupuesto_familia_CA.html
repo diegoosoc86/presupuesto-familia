@@ -228,6 +228,47 @@
   .resumen-row .r-amt { font-family: 'DM Mono', monospace; font-size: 12px; }
   .export-btn { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 13px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; }
 
+  /* QUIEN */
+  .quien-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .quien-btn {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 11px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .quien-btn:active { transform: scale(0.97); }
+  .quien-btn.diego.selected {
+    border-color: #7c6af7;
+    background: rgba(124,106,247,0.15);
+    color: #7c6af7;
+  }
+  .quien-btn.cami.selected {
+    border-color: #f76a9e;
+    background: rgba(247,106,158,0.15);
+    color: #f76a9e;
+  }
+  .quien-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+    margin-left: 6px;
+  }
+  .quien-tag.diego { background: rgba(124,106,247,0.2); color: #7c6af7; }
+  .quien-tag.cami { background: rgba(247,106,158,0.2); color: #f76a9e; }
+
   /* TOAST */
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 18px; font-size: 13px; font-weight: 500; z-index: 300; transition: transform 0.3s ease; white-space: nowrap; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
   .toast.show { transform: translateX(-50%) translateY(0); }
@@ -299,6 +340,10 @@
         <input type="number" class="amount-input" id="amountInput" placeholder="0" inputmode="decimal" />
       </div>
       <div class="cat-grid" id="catGrid"></div>
+      <div class="quien-selector">
+        <div class="quien-btn diego" id="btnDiego" onclick="selectQuien('Diego')">👦🏻 Diego</div>
+        <div class="quien-btn cami" id="btnCami" onclick="selectQuien('Cami')">👩🏻‍🦱 Cami</div>
+      </div>
       <input type="text" class="note-input" id="noteInput" placeholder="Nota (opcional)..." maxlength="60" />
       <button class="add-btn" onclick="addExpense()" id="addBtn">Guardar gasto</button>
     </div>
@@ -326,6 +371,7 @@
       <div class="summary-card full"><div class="label">Disponible variables</div><div class="amount green" id="resumenDisp" style="font-size:22px">$49,400</div></div>
     </div>
     <div class="resumen-card"><h4>Por categoría</h4><div id="resumenCats"></div></div>
+    <div class="resumen-card"><h4>Por persona</h4><div id="resumenPorPersona"></div></div>
     <div class="resumen-card"><h4>Fijos — Estado</h4><div id="resumenFijos"></div></div>
     <button class="export-btn" onclick="exportCSV()">📤 Exportar CSV</button>
     <div class="settings-link" onclick="resetSetup()">⚙️ Cambiar URL del script</div>
@@ -369,7 +415,14 @@ let scriptUrl = localStorage.getItem('qro_script_url') || '';
 let gastos = [];
 let fijos = [];
 let selectedCat = null;
+let selectedQuien = null;
 let modalTarget = null;
+
+function selectQuien(quien) {
+  selectedQuien = quien;
+  document.getElementById('btnDiego').classList.toggle('selected', quien === 'Diego');
+  document.getElementById('btnCami').classList.toggle('selected', quien === 'Cami');
+}
 
 // ── SETUP ──────────────────────────────────────────────
 function saveScriptUrl() {
@@ -520,10 +573,11 @@ function renderExpenseList() {
   }
   list.innerHTML = recent.map(e => {
     const cat = CATEGORIES.find(c => c.id === e.cat) || { emoji: '💸', name: e.cat };
+    const quienTag = e.quien ? `<span class="quien-tag ${e.quien.toLowerCase()}">${e.quien}</span>` : '';
     return `<div class="expense-item">
       <div class="expense-emoji">${cat.emoji}</div>
       <div class="expense-info">
-        <div class="expense-cat">${cat.name}</div>
+        <div class="expense-cat">${cat.name}${quienTag}</div>
         ${e.note ? `<div class="expense-note">${e.note}</div>` : ''}
         <div class="expense-date">${fmtDate(e.date)}</div>
       </div>
@@ -537,14 +591,18 @@ async function addExpense() {
   const amount = parseFloat(document.getElementById('amountInput').value);
   if (!amount || amount <= 0) { toast('⚠️ Ingresa un monto'); return; }
   if (!selectedCat) { toast('⚠️ Selecciona categoría'); return; }
+  if (!selectedQuien) { toast('⚠️ Selecciona quién paga'); return; }
   const note = document.getElementById('noteInput').value.trim();
-  const gasto = { id: Date.now().toString(), cat: selectedCat, amount, note, date: today() };
+  const gasto = { id: Date.now().toString(), cat: selectedCat, amount, note, date: today(), quien: selectedQuien };
 
   // Optimistic UI
   gastos.push(gasto);
   document.getElementById('amountInput').value = '';
   document.getElementById('noteInput').value = '';
   selectedCat = null;
+  selectedQuien = null;
+  document.getElementById('btnDiego').classList.remove('selected');
+  document.getElementById('btnCami').classList.remove('selected');
   renderAll();
 
   try {
@@ -655,6 +713,19 @@ function renderResumen() {
     const color = pct < 70 ? 'var(--green)' : pct < 95 ? 'var(--accent2)' : 'var(--red)';
     return `<div class="resumen-row"><span class="r-name">${c.emoji} ${c.name}</span><span class="r-amt" style="color:${color}">${fmt(spent)}</span></div>`;
   }).join('');
+
+  // Por persona
+  const diegoTotal = gastos.filter(e => e.quien === 'Diego').reduce((s,e) => s + e.amount, 0);
+  const camiTotal = gastos.filter(e => e.quien === 'Cami').reduce((s,e) => s + e.amount, 0);
+  const sinAsignar = gastos.filter(e => !e.quien).reduce((s,e) => s + e.amount, 0);
+  let porPersonaHtml = `
+    <div class="resumen-row"><span class="r-name">👤 <span class="quien-tag diego">Diego</span></span><span class="r-amt" style="color:#7c6af7">${fmt(diegoTotal)}</span></div>
+    <div class="resumen-row"><span class="r-name">👤 <span class="quien-tag cami">Cami</span></span><span class="r-amt" style="color:#f76a9e">${fmt(camiTotal)}</span></div>
+  `;
+  if (sinAsignar > 0) porPersonaHtml += `<div class="resumen-row"><span class="r-name">— Sin asignar</span><span class="r-amt">${fmt(sinAsignar)}</span></div>`;
+
+  // Insert before fijos section
+  document.getElementById('resumenPorPersona').innerHTML = porPersonaHtml;
 
   document.getElementById('resumenFijos').innerHTML = fijos.map(f => `
     <div class="resumen-row">
