@@ -409,70 +409,51 @@ function renderExpenseList(){
     const mT=gasto.metodo_pago?`<span class="tm">${gasto.metodo_pago}</span>`:'';
     const monT=gasto.moneda&&gasto.moneda!=='MXN'?`<span class="tmon">${gasto.moneda}</span>`:'';
     const orig=gasto.moneda&&gasto.moneda!=='MXN'?`<div class="eorig">${(+gasto.monto_original).toLocaleString('es-MX')} ${gasto.moneda}</div>`:'';
-
+    const gid=gasto.id;
     const div=document.createElement('div');
     div.className='eitem';
-
-    // Main row (always visible)
-    const row=document.createElement('div');
-    row.className='erow';
-    row.style.cursor='pointer';
-    row.innerHTML=`
-      <div class="eemoji">${c.e}</div>
-      <div class="einfo">
-        <div class="ecat">${c.n} ${qT} ${monT}</div>
-        <div class="emeta">${mT}${gasto.note?`<span>${gasto.note}</span>`:''}</div>
-        <div class="edate">${fmtD(gasto.date)}</div>
+    div.innerHTML=`
+      <div class="erow" onclick="toggleActions('actions-${gid}', 'toggle-${gid}', this.closest('.eitem'))">
+        <div class="eemoji">${c.e}</div>
+        <div class="einfo">
+          <div class="ecat">${c.n} ${qT} ${monT}</div>
+          <div class="emeta">${mT}${gasto.note?`<span>${gasto.note}</span>`:''}</div>
+          <div class="edate">${fmtD(gasto.date)}</div>
+        </div>
+        <div class="eright">
+          <div class="eamt">${fmt(gasto.amount)}</div>
+          ${orig}
+          <div id="toggle-${gid}" style="font-size:10px;color:var(--muted);margin-top:3px">▼ opciones</div>
+        </div>
       </div>
-      <div class="eright">
-        <div class="eamt">${fmt(gasto.amount)}</div>
-        ${orig}
-        <div style="font-size:10px;color:var(--muted);margin-top:3px" class="etoggle">▼ opciones</div>
+      <div id="actions-${gid}" class="eactions" style="display:none">
+        <button style="flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer" onclick="openEdit('${gid}')">✏️ Editar</button>
+        <button style="flex:1;padding:9px;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px" onclick="confirmDelete('${gid}','${c.n}',${gasto.amount})">🗑️ Eliminar</button>
       </div>`;
-
-    // Actions panel (hidden by default)
-    const actions=document.createElement('div');
-    actions.className='eactions';
-    actions.style.display='none';
-
-    const btnEdit=document.createElement('button');
-    btnEdit.textContent='✏️ Editar';
-    btnEdit.style.cssText='flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer';
-
-    const btnDel=document.createElement('button');
-    btnDel.textContent='🗑️ Eliminar';
-    btnDel.style.cssText='flex:1;padding:9px;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:10px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px';
-
-    actions.appendChild(btnEdit);
-    actions.appendChild(btnDel);
-    div.appendChild(row);
-    div.appendChild(actions);
     el.appendChild(div);
-
-    // Toggle on row tap
-    row.addEventListener('click', function(){
-      const isOpen = actions.style.display !== 'none';
-      // Close all others
-      document.querySelectorAll('.eactions').forEach(a=>{ a.style.display='none'; });
-      document.querySelectorAll('.etoggle').forEach(t=>{ t.textContent='▼ opciones'; });
-      document.querySelectorAll('.eitem').forEach(i=>{ i.style.borderRadius='12px'; });
-      if(!isOpen){
-        actions.style.display='flex';
-        div.style.borderRadius='12px 12px 0 0';
-        row.querySelector('.etoggle').textContent='▲ cerrar';
-      }
-    });
-
-    btnEdit.addEventListener('click', function(ev){
-      ev.stopPropagation();
-      openEdit(gasto.id);
-    });
-    btnDel.addEventListener('click', function(ev){
-      ev.stopPropagation();
-      if(confirm(`¿Eliminar este gasto?\n${c.n} — ${fmt(gasto.amount)} MXN`)) doDelete(gasto.id);
-    });
   });
 }
+
+function toggleActions(actionsId, toggleId, item){
+  const panel=document.getElementById(actionsId);
+  const toggle=document.getElementById(toggleId);
+  if(!panel||!toggle)return;
+  const isOpen=panel.style.display!=='none';
+  // Close all
+  document.querySelectorAll('.eactions').forEach(a=>a.style.display='none');
+  document.querySelectorAll('[id^="toggle-"]').forEach(t=>t.textContent='▼ opciones');
+  document.querySelectorAll('.eitem').forEach(i=>i.style.borderRadius='12px');
+  if(!isOpen){
+    panel.style.display='flex';
+    toggle.textContent='▲ cerrar';
+    item.style.borderRadius='12px 12px 0 0';
+  }
+}
+
+function confirmDelete(id, nombre, monto){
+  if(confirm('¿Eliminar este gasto?\n'+nombre+' — '+fmt(monto)+' MXN')) doDelete(id);
+}
+
 
 // ── ADD ────────────────────────────────────────────────────────────────────────
 function selCur(c){sCur=c;['MXN','COP','USD'].forEach(x=>document.getElementById('cur'+x).classList.toggle('sel',x===c));document.getElementById('addPrefix').textContent='$ '+c;setRate('rateInfo',c);renderMetodoGrid();}
