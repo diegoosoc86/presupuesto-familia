@@ -83,7 +83,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .eright{flex-shrink:0;text-align:right}
 .eamt{font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:var(--accent2)}
 .eorig{font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px}
-.eactions{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2)}
+.eactions{display:flex;gap:0;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2);border-radius:0 0 12px 12px}
 .tq{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
 .tq.diego{background:rgba(124,106,247,.2);color:#7c6af7}
 .tq.cami{background:rgba(247,106,158,.2);color:#f76a9e}
@@ -144,7 +144,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   <div class="header">
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
-      <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.0</span>
+        <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
+      </div>
     </div>
     <div class="hsub">
       <span id="monthBadge" class="mbadge"></span>
@@ -406,27 +409,68 @@ function renderExpenseList(){
     const mT=e.metodo_pago?`<span class="tm">${e.metodo_pago}</span>`:'';
     const monT=e.moneda&&e.moneda!=='MXN'?`<span class="tmon">${e.moneda}</span>`:'';
     const orig=e.moneda&&e.moneda!=='MXN'?`<div class="eorig">${(+e.monto_original).toLocaleString('es-MX')} ${e.moneda}</div>`:'';
+
     const div=document.createElement('div');
     div.className='eitem';
-    div.innerHTML=`
-      <div class="erow">
-        <div class="eemoji">${c.e}</div>
-        <div class="einfo">
-          <div class="ecat">${c.n} ${qT} ${monT}</div>
-          <div class="emeta">${mT}${e.note?`<span>${e.note}</span>`:''}</div>
-          <div class="edate">${fmtD(e.date)}</div>
-        </div>
-        <div class="eright"><div class="eamt">${fmt(e.amount)}</div>${orig}</div>
+
+    // Main row (always visible)
+    const row=document.createElement('div');
+    row.className='erow';
+    row.style.cursor='pointer';
+    row.innerHTML=`
+      <div class="eemoji">${c.e}</div>
+      <div class="einfo">
+        <div class="ecat">${c.n} ${qT} ${monT}</div>
+        <div class="emeta">${mT}${e.note?`<span>${e.note}</span>`:''}</div>
+        <div class="edate">${fmtD(e.date)}</div>
       </div>
-      <div class="eactions">
-        <button class="ebtn-edit" style="flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✏️ Editar</button>
-        <button class="ebtn-del" style="flex:1;padding:9px;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">🗑️ Eliminar</button>
+      <div class="eright">
+        <div class="eamt">${fmt(e.amount)}</div>
+        ${orig}
+        <div style="font-size:10px;color:var(--muted);margin-top:3px" class="etoggle">▼ opciones</div>
       </div>`;
-    div.querySelector('.ebtn-edit').addEventListener('click',()=>openEdit(e.id));
-    div.querySelector('.ebtn-del').addEventListener('click',()=>{
-      if(confirm(`¿Eliminar?\n${c.n} — ${fmt(e.amount)} MXN`))doDelete(e.id);
-    });
+
+    // Actions panel (hidden by default)
+    const actions=document.createElement('div');
+    actions.className='eactions';
+    actions.style.display='none';
+
+    const btnEdit=document.createElement('button');
+    btnEdit.textContent='✏️ Editar';
+    btnEdit.style.cssText='flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer';
+
+    const btnDel=document.createElement('button');
+    btnDel.textContent='🗑️ Eliminar';
+    btnDel.style.cssText='flex:1;padding:9px;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:10px;font-family:"DM Sans",sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px';
+
+    actions.appendChild(btnEdit);
+    actions.appendChild(btnDel);
+    div.appendChild(row);
+    div.appendChild(actions);
     el.appendChild(div);
+
+    // Toggle on row tap
+    row.addEventListener('click', function(){
+      const isOpen = actions.style.display !== 'none';
+      // Close all others
+      document.querySelectorAll('.eactions').forEach(a=>{ a.style.display='none'; });
+      document.querySelectorAll('.etoggle').forEach(t=>{ t.textContent='▼ opciones'; });
+      document.querySelectorAll('.eitem').forEach(i=>{ i.style.borderRadius='12px'; });
+      if(!isOpen){
+        actions.style.display='flex';
+        div.style.borderRadius='12px 12px 0 0';
+        row.querySelector('.etoggle').textContent='▲ cerrar';
+      }
+    });
+
+    btnEdit.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      openEdit(e.id);
+    });
+    btnDel.addEventListener('click', function(ev){
+      ev.stopPropagation();
+      if(confirm(`¿Eliminar este gasto?\n${c.n} — ${fmt(e.amount)} MXN`)) doDelete(e.id);
+    });
   });
 }
 
