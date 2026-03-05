@@ -550,8 +550,12 @@ async function saveEdit(){
   const prev={...gastos[idx]};
   gastos[idx]={...gastos[idx],amount,monto_original:raw,moneda:eCur,cat:eCat,quien:eQ,metodo_pago:eM,note,tasa};
   cancelEdit();renderAll();
-  try{await api({action:'updateGasto',id:eId,amount,monto_original:raw,moneda:eCur,cat:eCat,quien:eQ,metodo_pago:eM,note,tasa});toast('✅ Gasto actualizado');}
-  catch(e){gastos[idx]=prev;renderAll();toast('❌ Error al guardar');}
+  try{
+    const res=await api({action:'updateGasto',id:eId,amount,monto_original:raw,moneda:eCur,cat:eCat,quien:eQ,metodo_pago:eM,note,tasa});
+    console.log('updateGasto respuesta:',JSON.stringify(res),'id enviado:',eId);
+    if(res&&res.ok){toast('✅ Gasto actualizado');}
+    else{gastos[idx]=prev;renderAll();toast('❌ '+(res&&res.error?res.error:'id no encontrado: '+eId));}
+  }catch(err){console.error('updateGasto error:',err);gastos[idx]=prev;renderAll();toast('❌ Error de red');}
 }
 
 // ── FIJOS ──────────────────────────────────────────────────────────────────────
