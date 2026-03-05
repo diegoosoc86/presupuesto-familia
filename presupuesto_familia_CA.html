@@ -579,7 +579,7 @@ function renderExpenseList() {
     const mTag=e.metodo_pago?`<span class="tag-metodo">${e.metodo_pago}</span>`:'';
     const monTag=e.moneda&&e.moneda!=='MXN'?`<span class="tag-moneda">${e.moneda}</span>`:'';
     const orig=e.moneda&&e.moneda!=='MXN'?`<div class="exp-orig">${(+e.monto_original).toLocaleString('es-MX')} ${e.moneda}</div>`:'';
-    return `<div class="expense-item" onclick="openDetail('${e.id}')">
+    return `<div class="expense-item" data-gid="${e.id}">
       <div class="exp-emoji">${c.emoji}</div>
       <div class="exp-info">
         <div class="exp-cat">${c.name} ${qTag} ${monTag}</div>
@@ -593,6 +593,12 @@ function renderExpenseList() {
       </div>
     </div>`;
   }).join('');
+
+  document.querySelectorAll('#expenseList .expense-item').forEach(item => {
+    item.addEventListener('click', function() {
+      openDetail(this.getAttribute('data-gid'));
+    });
+  });
 }
 
 // ── ADD EXPENSE ───────────────────────────────────────────────────────────────
