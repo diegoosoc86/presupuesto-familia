@@ -549,10 +549,11 @@ async function saveEdit(){
   const idx=gastos.findIndex(g=>g.id===eId);if(idx===-1)return;
   const prev={...gastos[idx]};
   gastos[idx]={...gastos[idx],amount,monto_original:raw,moneda:eCur,cat:eCat,quien:eQ,metodo_pago:eM,note,tasa};
+  const savedId=eId;
   cancelEdit();renderAll();
   try{
-    const res=await api({action:'updateGasto',id:eId,amount,monto_original:raw,moneda:eCur,cat:eCat,quien:eQ,metodo_pago:eM,note,tasa});
-    console.log('updateGasto respuesta:',JSON.stringify(res),'id enviado:',eId);
+    const res=await api({action:'updateGasto',id:savedId,amount,monto_original:raw,moneda:eCur,cat:eCat,quien:eQ,metodo_pago:eM,note,tasa});
+    console.log('updateGasto respuesta:',JSON.stringify(res),'id enviado:',savedId,'tipo:',typeof eId);
     if(res&&res.ok){toast('✅ Gasto actualizado');}
     else{gastos[idx]=prev;renderAll();toast('❌ '+(res&&res.error?res.error:'id no encontrado: '+eId));}
   }catch(err){console.error('updateGasto error:',err);gastos[idx]=prev;renderAll();toast('❌ Error de red');}
