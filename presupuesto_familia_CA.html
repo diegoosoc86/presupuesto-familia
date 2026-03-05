@@ -278,6 +278,48 @@
   </div>
 </div>
 
+<!-- EDIT GASTO MODAL -->
+<div class="modal-overlay" id="editModalOverlay" onclick="closeEditModal(event)">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;padding-bottom:32px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0">✏️ Editar gasto</h3>
+      <button onclick="closeEditModalDirect()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+    </div>
+
+    <div class="field-label">Monto y moneda</div>
+    <div class="amount-input-wrap" style="margin-bottom:4px">
+      <span class="currency-label" id="editCurrencySymbol">$ MXN</span>
+      <input type="number" class="amount-input" id="editAmountInput" placeholder="0" inputmode="decimal" style="padding-left:64px" />
+    </div>
+    <div class="currency-selector">
+      <div class="currency-btn" id="editBtnMXN" onclick="editSelectCurrency('MXN')">🇲🇽 MXN</div>
+      <div class="currency-btn" id="editBtnCOP" onclick="editSelectCurrency('COP')">🇨🇴 COP</div>
+      <div class="currency-btn" id="editBtnUSD" onclick="editSelectCurrency('USD')">🇺🇸 USD</div>
+    </div>
+    <div class="rate-info" id="editRateInfo" style="margin-bottom:14px">Moneda base</div>
+
+    <div class="field-label">Categoría</div>
+    <div class="cat-grid" id="editCatGrid" style="margin-bottom:14px"></div>
+
+    <div class="field-label">¿Quién paga?</div>
+    <div class="quien-selector" style="margin-bottom:14px">
+      <div class="quien-btn diego" id="editBtnDiego" onclick="editSelectQuien('Diego')">👦🏻 Diego</div>
+      <div class="quien-btn cami" id="editBtnCami" onclick="editSelectQuien('Cami')">👩🏻‍🦱 Cami</div>
+    </div>
+
+    <div class="field-label">Método de pago</div>
+    <div class="metodo-grid" id="editMetodoGrid" style="margin-bottom:14px"></div>
+
+    <div class="field-label">Nota</div>
+    <input type="text" class="note-input" id="editNoteInput" placeholder="Nota (opcional)..." maxlength="60" />
+
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeEditModalDirect()">Cancelar</button>
+      <button class="btn-save" onclick="saveEditGasto()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <div class="loading-text" id="loadingText">Sincronizando...</div>
@@ -308,6 +350,112 @@ let gastos = [], fijos = [];
 let selectedCat = null, selectedQuien = null, selectedMetodo = null, selectedCurrency = 'MXN';
 let exchangeRates = { MXN:1, COP:null, USD:null };
 let modalTarget = null;
+let editTarget = null;
+let editCat = null, editQuien = null, editMetodo = null, editCurrency = 'MXN';
+
+// EDIT GASTO
+function openEditGasto(id) {
+  const g = gastos.find(g => g.id === id);
+  if (!g) return;
+  editTarget = id;
+  editCat = g.cat;
+  editQuien = g.quien || null;
+  editMetodo = g.metodo_pago || null;
+  editCurrency = g.moneda || 'MXN';
+
+  document.getElementById('editAmountInput').value = g.monto_original || g.amount;
+  document.getElementById('editNoteInput').value = g.note || '';
+
+  // Currency
+  ['MXN','COP','USD'].forEach(x => document.getElementById('editBtn'+x).classList.toggle('selected', x === editCurrency));
+  document.getElementById('editCurrencySymbol').textContent = '$ ' + editCurrency;
+  updateEditRateInfo();
+
+  // Quien
+  document.getElementById('editBtnDiego').classList.toggle('selected', editQuien === 'Diego');
+  document.getElementById('editBtnCami').classList.toggle('selected', editQuien === 'Cami');
+
+  renderEditCatGrid();
+  renderEditMetodoGrid();
+
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function updateEditRateInfo() {
+  const info = document.getElementById('editRateInfo');
+  if (editCurrency === 'MXN') { info.textContent = 'Moneda base'; info.className = 'rate-info'; }
+  else if (editCurrency === 'COP') { info.textContent = `1 COP = ${(exchangeRates.COP||0.0047).toFixed(5)} MXN`; info.className = 'rate-info loaded'; }
+  else if (editCurrency === 'USD') { info.textContent = `1 USD = ${(exchangeRates.USD||17.5).toFixed(2)} MXN`; info.className = 'rate-info loaded'; }
+}
+
+function editSelectCurrency(c) {
+  editCurrency = c;
+  ['MXN','COP','USD'].forEach(x => document.getElementById('editBtn'+x).classList.toggle('selected', x === c));
+  document.getElementById('editCurrencySymbol').textContent = '$ ' + c;
+  updateEditRateInfo();
+  renderEditMetodoGrid();
+}
+
+function editSelectQuien(quien) {
+  editQuien = quien; editMetodo = null;
+  document.getElementById('editBtnDiego').classList.toggle('selected', quien === 'Diego');
+  document.getElementById('editBtnCami').classList.toggle('selected', quien === 'Cami');
+  renderEditMetodoGrid();
+}
+
+function renderEditCatGrid() {
+  const grid = document.getElementById('editCatGrid'); grid.innerHTML = '';
+  CATEGORIES.forEach(c => {
+    const btn = document.createElement('div');
+    btn.className = 'cat-btn' + (editCat === c.id ? ' selected' : '');
+    btn.innerHTML = `<span class="emoji">${c.emoji}</span><span class="name">${c.name}</span>`;
+    btn.onclick = () => { editCat = c.id; renderEditCatGrid(); };
+    grid.appendChild(btn);
+  });
+}
+
+function renderEditMetodoGrid() {
+  const grid = document.getElementById('editMetodoGrid');
+  if (!editQuien) { grid.innerHTML = '<div style="font-size:12px;color:var(--muted)">Selecciona quién paga primero</div>'; return; }
+  const opciones = (METODOS[editQuien] && METODOS[editQuien][editCurrency]) || ['Efectivo'];
+  // If current editMetodo not in new list, reset
+  if (editMetodo && !opciones.includes(editMetodo)) editMetodo = null;
+  grid.innerHTML = opciones.map(m => `<div class="metodo-btn ${editMetodo===m?'selected':''}" onclick="editSelectMetodo('${m}')">${m}</div>`).join('');
+}
+
+function editSelectMetodo(m) { editMetodo = m; renderEditMetodoGrid(); }
+
+async function saveEditGasto() {
+  const amountRaw = parseFloat(document.getElementById('editAmountInput').value);
+  if (!amountRaw || amountRaw <= 0) { toast('⚠️ Ingresa un monto'); return; }
+  if (!editCat) { toast('⚠️ Selecciona categoría'); return; }
+  if (!editQuien) { toast('⚠️ Selecciona quién paga'); return; }
+  if (!editMetodo) { toast('⚠️ Selecciona método de pago'); return; }
+
+  const amount = Math.round(toMXN(amountRaw, editCurrency) * 100) / 100;
+  const tasa = editCurrency === 'MXN' ? 1 : Math.round((amount / amountRaw) * 10000) / 10000;
+  const note = document.getElementById('editNoteInput').value.trim();
+
+  const idx = gastos.findIndex(g => g.id === editTarget);
+  if (idx === -1) return;
+  const prev = { ...gastos[idx] };
+
+  // Optimistic update
+  gastos[idx] = { ...gastos[idx], amount, monto_original: amountRaw, moneda: editCurrency, cat: editCat, quien: editQuien, metodo_pago: editMetodo, note, tasa };
+  renderAll();
+  closeEditModalDirect();
+
+  try {
+    await api({ action: 'updateGasto', id: editTarget, amount, monto_original: amountRaw, moneda: editCurrency, cat: editCat, quien: editQuien, metodo_pago: editMetodo, note, tasa });
+    toast('✅ Gasto actualizado');
+  } catch(e) {
+    gastos[idx] = prev; renderAll();
+    toast('❌ Error al guardar');
+  }
+}
+
+function closeEditModal(e) { if (e.target.id === 'editModalOverlay') closeEditModalDirect(); }
+function closeEditModalDirect() { document.getElementById('editModalOverlay').classList.remove('open'); editTarget = null; }
 
 // SETUP
 function saveScriptUrl() {
@@ -481,7 +629,10 @@ function renderExpenseList() {
       <div class="expense-right">
         <div class="expense-amount">${fmt(e.amount)}</div>
         ${originalLine}
-        <button class="expense-del" onclick="deleteExpense('${e.id}')">✕</button>
+        <div style="display:flex;gap:4px;margin-top:2px">
+          <button class="expense-del" style="font-size:13px;color:var(--accent);border:1px solid var(--border);border-radius:6px;padding:2px 7px" onclick="openEditGasto('${e.id}')">✏️</button>
+          <button class="expense-del" onclick="deleteExpense('${e.id}')">✕</button>
+        </div>
       </div>
     </div>`;
   }).join('');
