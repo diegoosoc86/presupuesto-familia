@@ -505,6 +505,7 @@ function setSyncing(on, ok) {
 function fmt(n) { return '$'+Math.round(n).toLocaleString('es-MX'); }
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function fmtDate(iso) { const s=String(iso).slice(0,10); const[,m,d]=s.split('-'); return `${d}/${m}`; }
+function dateStr(iso) { return String(iso).slice(0,10); }
 function monthName() { return ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][new Date().getMonth()]; }
 function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
 function showLoading(msg) { document.getElementById('loadingTxt').textContent=msg||'Guardando...'; document.getElementById('loadingOverlay').classList.add('show'); }
@@ -531,7 +532,7 @@ function renderAll() {
 
 function renderSummary() {
   const t = todayStr();
-  const hoy = gastos.filter(e=>e.date===t).reduce((s,e)=>s+e.amount,0);
+  const hoy = gastos.filter(e=>dateStr(e.date)===t).reduce((s,e)=>s+e.amount,0);
   const mes = gastos.reduce((s,e)=>s+e.amount,0);
   document.getElementById('sumHoy').textContent = fmt(hoy);
   document.getElementById('sumMes').textContent = fmt(mes);
@@ -573,31 +574,65 @@ function renderExpenseList() {
   const el = document.getElementById('expenseList');
   const recent = [...gastos].reverse().slice(0,20);
   if (!recent.length) { el.innerHTML='<div class="empty-state"><div class="big">📝</div><p>Sin gastos este mes.<br>¡Registra el primero!</p></div>'; return; }
-  el.innerHTML = recent.map(e=>{
-    const c=getCat(e.cat);
-    const qTag=e.quien?`<span class="tag-quien ${(e.quien).toLowerCase()}">${e.quien}</span>`:'';
-    const mTag=e.metodo_pago?`<span class="tag-metodo">${e.metodo_pago}</span>`:'';
-    const monTag=e.moneda&&e.moneda!=='MXN'?`<span class="tag-moneda">${e.moneda}</span>`:'';
-    const orig=e.moneda&&e.moneda!=='MXN'?`<div class="exp-orig">${(+e.monto_original).toLocaleString('es-MX')} ${e.moneda}</div>`:'';
-    return `<div class="expense-item" data-gid="${e.id}">
+
+  el.innerHTML = '';
+  recent.forEach(e => {
+    const c = getCat(e.cat);
+    const qTag = e.quien ? `<span class="tag-quien ${e.quien.toLowerCase()}">${e.quien}</span>` : '';
+    const mTag = e.metodo_pago ? `<span class="tag-metodo">${e.metodo_pago}</span>` : '';
+    const monTag = e.moneda && e.moneda !== 'MXN' ? `<span class="tag-moneda">${e.moneda}</span>` : '';
+    const orig = e.moneda && e.moneda !== 'MXN' ? `<div class="exp-orig">${(+e.monto_original).toLocaleString('es-MX')} ${e.moneda}</div>` : '';
+
+    const wrapper = document.createElement('div');
+    wrapper.style.marginBottom = '8px';
+
+    const item = document.createElement('div');
+    item.className = 'expense-item';
+    item.style.marginBottom = '0';
+    item.innerHTML = `
       <div class="exp-emoji">${c.emoji}</div>
       <div class="exp-info">
         <div class="exp-cat">${c.name} ${qTag} ${monTag}</div>
-        <div class="exp-meta">${mTag}${e.note?`<span>${e.note}</span>`:''}</div>
+        <div class="exp-meta">${mTag}${e.note ? `<span>${e.note}</span>` : ''}</div>
         <div class="exp-date">${fmtDate(e.date)}</div>
       </div>
       <div class="exp-right">
         <div class="exp-amt">${fmt(e.amount)}</div>
         ${orig}
-        <div class="exp-hint">toca para ver ›</div>
-      </div>
-    </div>`;
-  }).join('');
+        <div class="exp-hint" id="hint-${e.id}">▼ ver</div>
+      </div>`;
 
-  document.querySelectorAll('#expenseList .expense-item').forEach(item => {
+    const panel = document.createElement('div');
+    panel.id = 'panel-' + e.id;
+    panel.style.cssText = 'display:none; background:var(--surface2); border:1px solid var(--border); border-top:none; border-radius:0 0 12px 12px; padding:12px 14px; gap:8px;';
+
+    const detailHtml = [
+      e.moneda && e.moneda !== 'MXN' ? `<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Original: ${(+e.monto_original).toLocaleString('es-MX')} ${e.moneda}</div>` : '',
+      `<div style="display:flex;gap:8px">
+        <button onclick="openEdit('${e.id}')" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✏️ Editar</button>
+        <button onclick="askDelete('${e.id}')" style="flex:1;padding:10px;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">🗑️ Eliminar</button>
+      </div>`
+    ].join('');
+    panel.innerHTML = detailHtml;
+
     item.addEventListener('click', function() {
-      openDetail(this.getAttribute('data-gid'));
+      const isOpen = panel.style.display === 'flex' || panel.style.display === 'block';
+      // Close all other panels first
+      document.querySelectorAll('[id^="panel-"]').forEach(p => {
+        p.style.display = 'none';
+        p.previousSibling && (p.previousSibling.style.borderRadius = '12px');
+      });
+      document.querySelectorAll('[id^="hint-"]').forEach(h => h.textContent = '▼ ver');
+      if (!isOpen) {
+        panel.style.display = 'block';
+        item.style.borderRadius = '12px 12px 0 0';
+        document.getElementById('hint-' + e.id).textContent = '▲ cerrar';
+      }
     });
+
+    wrapper.appendChild(item);
+    wrapper.appendChild(panel);
+    el.appendChild(wrapper);
   });
 }
 
@@ -672,6 +707,13 @@ function fromDetailToDelete() {
   document.getElementById('overlayConfirm').classList.add('open');
 }
 
+function askDelete(id) {
+  const g = gastos.find(x=>x.id===id);
+  const c = getCat(g?.cat);
+  deleteId = id;
+  document.getElementById('confirmDesc').textContent = `${c.name} — ${fmt(g.amount)} MXN. Esta acción no se puede deshacer.`;
+  document.getElementById('overlayConfirm').classList.add('open');
+}
 // ── CONFIRM DELETE ────────────────────────────────────────────────────────────
 function closeConfirm() { document.getElementById('overlayConfirm').classList.remove('open'); deleteId=null; }
 async function doDelete() {
