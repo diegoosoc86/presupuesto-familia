@@ -380,6 +380,8 @@ let gastos = [], fijos = [];
 let selectedCat = null, selectedQuien = null, selectedMetodo = null, selectedCurrency = 'MXN';
 let exchangeRates = { MXN:1, COP:null, USD:null };
 let modalTarget = null;
+let deleteTargetId = null;
+let editTarget = null, editCat = null, editQuien = null, editMetodo = null, editCurrency = 'MXN';
 
 // EDIT GASTO
 function openEditGasto(id) {
@@ -682,8 +684,6 @@ async function addExpense() {
   catch(e) { toast('⚠️ Error al guardar'); gastos=gastos.filter(g=>g.id!==gasto.id); renderAll(); }
 }
 
-let deleteTargetId = null;
-
 // DETAIL MODAL
 function openDetailModal(id) {
   const g = gastos.find(g => g.id === id);
@@ -810,8 +810,6 @@ async function saveModal() {
 }
 
 // EDIT GASTO
-let editTarget = null, editCat = null, editQuien = null, editMetodo = null, editCurrency = 'MXN';
-
 function openEditGasto(id) {
   const g = gastos.find(g => g.id === id);
   if (!g) return;
