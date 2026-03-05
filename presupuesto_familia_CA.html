@@ -505,8 +505,9 @@ async function doDelete(id){
 
 // ── EDIT ───────────────────────────────────────────────────────────────────────
 function openEdit(id){
-  const g=gastos.find(x=>x.id===id);if(!g)return;
-  eId=id;eCat=g.cat;eQ=g.quien||null;eM=g.metodo_pago||null;eCur=g.moneda||'MXN';
+  const g=gastos.find(x=>String(x.id).trim()===String(id).trim());
+  if(!g){console.warn('openEdit: gasto no encontrado, id=',id,'gastos ids=',gastos.map(x=>x.id));return;}
+  eId=String(id).trim();eCat=g.cat;eQ=g.quien||null;eM=g.metodo_pago||null;eCur=g.moneda||'MXN';
   document.getElementById('editAmt').value=g.monto_original||g.amount;
   document.getElementById('editNote').value=g.note||'';
   ['MXN','COP','USD'].forEach(x=>document.getElementById('eCur'+x).classList.toggle('sel',x===eCur));
