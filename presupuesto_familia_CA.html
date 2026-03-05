@@ -403,12 +403,12 @@ function renderExpenseList(){
   const recent=[...gastos].reverse().slice(0,20);
   if(!recent.length){el.innerHTML='<div class="empty"><div class="big">📝</div><p>Sin gastos este mes.<br>¡Registra el primero!</p></div>';return;}
   el.innerHTML='';
-  recent.forEach(e=>{
-    const c=getCat(e.cat);
-    const qT=e.quien?`<span class="tq ${e.quien.toLowerCase()}">${e.quien}</span>`:'';
-    const mT=e.metodo_pago?`<span class="tm">${e.metodo_pago}</span>`:'';
-    const monT=e.moneda&&e.moneda!=='MXN'?`<span class="tmon">${e.moneda}</span>`:'';
-    const orig=e.moneda&&e.moneda!=='MXN'?`<div class="eorig">${(+e.monto_original).toLocaleString('es-MX')} ${e.moneda}</div>`:'';
+  recent.forEach(gasto=>{
+    const c=getCat(gasto.cat);
+    const qT=gasto.quien?`<span class="tq ${gasto.quien.toLowerCase()}">${gasto.quien}</span>`:'';
+    const mT=gasto.metodo_pago?`<span class="tm">${gasto.metodo_pago}</span>`:'';
+    const monT=gasto.moneda&&gasto.moneda!=='MXN'?`<span class="tmon">${gasto.moneda}</span>`:'';
+    const orig=gasto.moneda&&gasto.moneda!=='MXN'?`<div class="eorig">${(+gasto.monto_original).toLocaleString('es-MX')} ${gasto.moneda}</div>`:'';
 
     const div=document.createElement('div');
     div.className='eitem';
@@ -421,11 +421,11 @@ function renderExpenseList(){
       <div class="eemoji">${c.e}</div>
       <div class="einfo">
         <div class="ecat">${c.n} ${qT} ${monT}</div>
-        <div class="emeta">${mT}${e.note?`<span>${e.note}</span>`:''}</div>
-        <div class="edate">${fmtD(e.date)}</div>
+        <div class="emeta">${mT}${gasto.note?`<span>${gasto.note}</span>`:''}</div>
+        <div class="edate">${fmtD(gasto.date)}</div>
       </div>
       <div class="eright">
-        <div class="eamt">${fmt(e.amount)}</div>
+        <div class="eamt">${fmt(gasto.amount)}</div>
         ${orig}
         <div style="font-size:10px;color:var(--muted);margin-top:3px" class="etoggle">▼ opciones</div>
       </div>`;
@@ -465,11 +465,11 @@ function renderExpenseList(){
 
     btnEdit.addEventListener('click', function(ev){
       ev.stopPropagation();
-      openEdit(e.id);
+      openEdit(gasto.id);
     });
     btnDel.addEventListener('click', function(ev){
       ev.stopPropagation();
-      if(confirm(`¿Eliminar este gasto?\n${c.n} — ${fmt(e.amount)} MXN`)) doDelete(e.id);
+      if(confirm(`¿Eliminar este gasto?\n${c.n} — ${fmt(gasto.amount)} MXN`)) doDelete(gasto.id);
     });
   });
 }
@@ -637,7 +637,7 @@ function renderResumen(){
 // ── EXPORT ─────────────────────────────────────────────────────────────────────
 function exportCSV(){
   const rows=[['Fecha','Categoría','Monto MXN','Monto Original','Moneda','Tasa','Quien','Método','Nota']];
-  gastos.forEach(e=>{const c=getCat(e.cat);rows.push([e.date,c.n,e.amount,e.monto_original||e.amount,e.moneda||'MXN',e.tasa||1,e.quien||'',e.metodo_pago||'',e.note||'']);});
+  gastos.forEach(e=>{const c=getCat(gasto.cat);rows.push([e.date,c.n,e.amount,e.monto_original||e.amount,e.moneda||'MXN',e.tasa||1,e.quien||'',e.metodo_pago||'',e.note||'']);});
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));a.download=`gastos_${mName().toLowerCase()}.csv`;a.click();
   toast('📥 CSV descargado');
 }
