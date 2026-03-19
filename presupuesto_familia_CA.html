@@ -139,6 +139,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .del-btns{display:flex;gap:10px}
 .del-btn-cancel{flex:1;padding:13px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
 .del-btn-confirm{flex:1;padding:13px;background:var(--red);color:white;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+
+.amount-display{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:14px 14px 14px 70px;font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:var(--text);outline:none;cursor:text}
+.amount-display:focus{border-color:var(--accent)}
+.amount-display.has-value{color:var(--text)}
 </style>
 </head>
 <body>
@@ -157,7 +161,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.2</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.3</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -187,7 +191,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="flbl">Monto y moneda</div>
       <div class="awrap">
         <span id="editPrefix" class="aprefix">$ MXN</span>
-        <input id="editAmt" type="number" class="ainput" placeholder="0" inputmode="decimal" />
+        <input id="editAmt" type="text" class="ainput" placeholder="0" inputmode="decimal" />
       </div>
       <div class="currow">
         <div id="eCurMXN" class="curbtn sel" onclick="eSelCur('MXN')">🇲🇽 MXN</div>
@@ -218,7 +222,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div class="flbl">Monto y moneda</div>
       <div class="awrap">
         <span id="addPrefix" class="aprefix">$ MXN</span>
-        <input id="amountInput" type="number" class="ainput" placeholder="0" inputmode="decimal" />
+        <input id="amountInput" type="text" class="ainput" placeholder="0" inputmode="decimal" />
       </div>
       <div class="currow">
         <div id="curMXN" class="curbtn sel" onclick="selCur('MXN')">🇲🇽 MXN</div>
@@ -487,8 +491,9 @@ function closeDelModal(){
   pendingDeleteId = null;
 }
 function doDeleteConfirmed(){
+  const idToDelete = pendingDeleteId;
   closeDelModal();
-  if(pendingDeleteId) doDelete(pendingDeleteId);
+  if(idToDelete) doDelete(idToDelete);
 }
 
 
@@ -498,7 +503,7 @@ function selQuien(q){sQ=q;sM=null;document.getElementById('qDiego').classList.to
 function selMet(m){sM=m;renderMetodoGrid();}
 
 async function addExpense(){
-  const raw=parseFloat(document.getElementById('amountInput').value);
+  const raw=getRawAmount('amountInput');
   if(!raw||raw<=0){toast('⚠️ Ingresa un monto');return;}
   if(!sCat){toast('⚠️ Selecciona categoría');return;}
   if(!sQ){toast('⚠️ Selecciona quién paga');return;}
@@ -526,7 +531,8 @@ function openEdit(id){
   const g=gastos.find(x=>String(x.id).trim()===String(id).trim());
   if(!g){console.warn('openEdit: gasto no encontrado, id=',id,'gastos ids=',gastos.map(x=>x.id));return;}
   eId=String(id).trim();eCat=g.cat;eQ=g.quien||null;eM=g.metodo_pago||null;eCur=g.moneda||'MXN';
-  document.getElementById('editAmt').value=g.monto_original||g.amount;
+  const editAmtVal = g.monto_original||g.amount;
+  document.getElementById('editAmt').value = parseFloat(editAmtVal).toLocaleString('es-MX');
   document.getElementById('editNote').value=g.note||'';
   ['MXN','COP','USD'].forEach(x=>document.getElementById('eCur'+x).classList.toggle('sel',x===eCur));
   document.getElementById('editPrefix').textContent='$ '+eCur;
@@ -557,7 +563,7 @@ function renderEMetGrid(){
 }
 
 async function saveEdit(){
-  const raw=parseFloat(document.getElementById('editAmt').value);
+  const raw=getRawAmount('editAmt');
   if(!raw||raw<=0){toast('⚠️ Ingresa un monto');return;}
   if(!eCat){toast('⚠️ Selecciona categoría');return;}
   if(!eQ){toast('⚠️ Selecciona quién paga');return;}
@@ -661,7 +667,34 @@ function exportCSV(){
   toast('📥 CSV descargado');
 }
 
+
+// ── AMOUNT FORMATTING ──────────────────────────────────────────────────────────
+function formatAmountInput(el) {
+  // Get raw numeric value
+  let raw = el.value.replace(/[^0-9.]/g, '');
+  // Only allow one decimal point
+  const parts = raw.split('.');
+  if (parts.length > 2) raw = parts[0] + '.' + parts.slice(1).join('');
+  // Format integer part with thousand separators
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const decPart = parts[1] !== undefined ? '.' + parts[1] : '';
+  // Save cursor position
+  const cursorPos = el.selectionStart;
+  const prevLen = el.value.length;
+  el.value = intPart + decPart;
+  // Restore cursor roughly
+  const newLen = el.value.length;
+  el.setSelectionRange(cursorPos + (newLen - prevLen), cursorPos + (newLen - prevLen));
+}
+
+function getRawAmount(elId) {
+  const val = document.getElementById(elId).value.replace(/,/g, '');
+  return parseFloat(val);
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────────
+document.getElementById('amountInput').addEventListener('input', function(){ formatAmountInput(this); });
+document.getElementById('editAmt').addEventListener('input', function(){ formatAmountInput(this); });
 document.getElementById('amountInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('noteInput').focus();});
 document.getElementById('noteInput').addEventListener('keydown',e=>{if(e.key==='Enter')addExpense();});
 document.getElementById('fijoInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveFijo();});
