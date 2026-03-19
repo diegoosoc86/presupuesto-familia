@@ -127,6 +127,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 /* EDIT FORM (inline, inside page) */
 #editSection{display:none;background:var(--surface);border:2px solid var(--accent);border-radius:var(--r);padding:16px;margin-bottom:16px}
 #editSection h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)}
+
+/* CONFIRM DELETE MODAL */
+.del-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.del-overlay.open{display:flex}
+.del-modal{background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:28px 20px 32px;width:100%;max-width:430px;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.del-icon{font-size:48px;text-align:center;margin-bottom:12px}
+.del-title{font-size:17px;font-weight:700;text-align:center;margin-bottom:6px}
+.del-desc{font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px;line-height:1.5}
+.del-btns{display:flex;gap:10px}
+.del-btn-cancel{flex:1;padding:13px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+.del-btn-confirm{flex:1;padding:13px;background:var(--red);color:white;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -145,7 +157,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.1</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.2</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -258,6 +270,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
+
+<!-- CONFIRM DELETE MODAL -->
+<div id="delOverlay" class="del-overlay" onclick="if(event.target===this)closeDelModal()">
+  <div class="del-modal">
+    <div class="del-icon">🗑️</div>
+    <div class="del-title">¿Eliminar gasto?</div>
+    <div id="delDesc" class="del-desc">Esta acción no se puede deshacer.</div>
+    <div class="del-btns">
+      <button class="del-btn-cancel" onclick="closeDelModal()">Cancelar</button>
+      <button class="del-btn-confirm" onclick="doDeleteConfirmed()">Sí, eliminar</button>
+    </div>
+  </div>
+</div>
+
 <!-- FIJO EDIT (simple prompt-style inline modal) -->
 <div id="fijoOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:flex-end;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:430px">
@@ -289,7 +315,7 @@ const CATS=[
 ];
 const METS={
   Diego:{MXN:['Nu','Plata','Klar','Santander','Revolut','Efectivo'],COP:['Nu','Davibank','Efectivo'],USD:['DollarApp','Global66','Efectivo']},
-  Cami:{MXN:['Santander','Plata','Efectivo'],COP:['Efectivo'],USD:['Efectivo']},
+  Cami:{MXN:['Santander','Plata','Vale Restaurante','Vale Supermercado','Efectivo'],COP:['Efectivo'],USD:['Efectivo']},
 };
 
 let scriptUrl=localStorage.getItem('qro_url')||'';
@@ -450,8 +476,19 @@ function toggleActions(actionsId, toggleId, item){
   }
 }
 
+let pendingDeleteId = null;
 function confirmDelete(id, nombre, monto){
-  if(confirm('¿Eliminar este gasto?\n'+nombre+' — '+fmt(monto)+' MXN')) doDelete(id);
+  pendingDeleteId = id;
+  document.getElementById('delDesc').textContent = nombre + ' — ' + fmt(monto) + ' MXN. Esta acción no se puede deshacer.';
+  document.getElementById('delOverlay').classList.add('open');
+}
+function closeDelModal(){
+  document.getElementById('delOverlay').classList.remove('open');
+  pendingDeleteId = null;
+}
+function doDeleteConfirmed(){
+  closeDelModal();
+  if(pendingDeleteId) doDelete(pendingDeleteId);
 }
 
 
