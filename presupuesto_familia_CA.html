@@ -186,7 +186,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.9</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.10</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -567,8 +567,13 @@ function closeDelModal(){
 }
 function doDeleteConfirmed(){
   const idToDelete = pendingDeleteId;
+  const isTask = window._deleteIsTask === true;
+  window._deleteIsTask = false;
   closeDelModal();
-  if(idToDelete) doDelete(idToDelete);
+  if(idToDelete){
+    if(isTask) doDeleteTask(idToDelete);
+    else doDelete(idToDelete);
+  }
 }
 
 
@@ -744,22 +749,28 @@ function taskSelResp(r){
 
 function normalizeDate(val){
   if(!val) return '';
-  // Handle Excel/Sheets serial number (e.g. 46738)
-  if(typeof val === 'number' || (typeof val === 'string' && /^\d{5}$/.test(val.trim()))){
-    // Sheets serial: days since Dec 30, 1899
-    const serial = typeof val === 'number' ? val : parseInt(val);
-    const d = new Date((serial - 25569) * 86400 * 1000);
+  const n = typeof val === 'number' ? val : (typeof val === 'string' && /^\d+(\.\d+)?$/.test(val.trim()) ? parseFloat(val) : NaN);
+  // Sheets serial number (between 30000 and 60000 = years ~1982–2064)
+  if(!isNaN(n) && n > 30000 && n < 60000){
+    const d = new Date(Math.round((n - 25569) * 86400 * 1000));
     const y=d.getUTCFullYear(), m=String(d.getUTCMonth()+1).padStart(2,'0'), day=String(d.getUTCDate()).padStart(2,'0');
     return `${y}-${m}-${day}`;
   }
-  // Handle Date object or ISO string
-  const d = val instanceof Date ? val : new Date(val);
-  if(!isNaN(d)){
-    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+  // Date object
+  if(val instanceof Date){
+    const y=val.getFullYear(), m=String(val.getMonth()+1).padStart(2,'0'), day=String(val.getDate()).padStart(2,'0');
     return `${y}-${m}-${day}`;
   }
-  // Already YYYY-MM-DD
-  return String(val).slice(0,10);
+  // ISO string or YYYY-MM-DD
+  const s = String(val);
+  if(s.includes('T') || s.includes('Z')){
+    const d = new Date(s);
+    if(!isNaN(d)){
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
+  }
+  return s.slice(0,10);
 }
 
 function getDaysUntil(dateStr){
