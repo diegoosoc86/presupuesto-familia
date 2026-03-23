@@ -143,6 +143,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .amount-display{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:12px;padding:14px 14px 14px 70px;font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:var(--text);outline:none;cursor:text}
 .amount-display:focus{border-color:var(--accent)}
 .amount-display.has-value{color:var(--text)}
+
+/* TAREAS */
+.task-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden;transition:border-color .2s}
+.task-item.vencida{border-color:rgba(248,113,113,.4)}
+.task-item.pronto{border-color:rgba(247,162,106,.4)}
+.task-item.completada{opacity:.5}
+.task-row{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.task-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s}
+.task-check.done{background:var(--green);border-color:var(--green);color:white}
+.task-info{flex:1;min-width:0}
+.task-desc{font-size:13px;font-weight:600;margin-bottom:3px}
+.task-desc.done{text-decoration:line-through;color:var(--muted)}
+.task-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.task-badge-resp{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
+.task-badge-resp.diego{background:rgba(124,106,247,.2);color:#7c6af7}
+.task-badge-resp.cami{background:rgba(247,106,158,.2);color:#f76a9e}
+.task-badge-date{font-size:10px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:6px;background:var(--surface2);color:var(--muted)}
+.task-badge-date.vencida{background:rgba(248,113,113,.15);color:var(--red)}
+.task-badge-date.pronto{background:rgba(247,162,106,.15);color:var(--accent2)}
+.task-actions{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2)}
+.task-add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.task-add-form h3{font-size:14px;font-weight:600;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -161,7 +183,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.4</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.5</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -175,6 +197,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <button class="tab active" onclick="showTab('registro',this)">➕ Registrar</button>
     <button class="tab" onclick="showTab('fijos',this)">🏠 Fijos</button>
     <button class="tab" onclick="showTab('resumen',this)">📊 Resumen</button>
+    <button class="tab" onclick="showTab('tareas',this)">✅ Tareas</button>
   </div>
 
   <!-- REGISTRO -->
@@ -286,6 +309,30 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="del-btn-confirm" onclick="doDeleteConfirmed()">Sí, eliminar</button>
     </div>
   </div>
+
+  <!-- TAREAS -->
+  <div id="tab-tareas" class="page">
+    <div class="task-add-form">
+      <h3>Nueva tarea</h3>
+      <div class="flbl">Descripción</div>
+      <input id="taskDesc" type="text" class="ninput" placeholder="Ej: Pedir cita dermátólogo Emma..." maxlength="100" style="margin-bottom:12px"/>
+      <div class="flbl">Responsable</div>
+      <div class="qrow" style="margin-bottom:12px">
+        <div id="taskBtnDiego" class="qbtn diego" onclick="taskSelResp('Diego')">👦🏻 Diego</div>
+        <div id="taskBtnCami" class="qbtn cami" onclick="taskSelResp('Cami')">👩🏻‍🦱 Cami</div>
+      </div>
+      <div class="flbl">Fecha límite</div>
+      <input id="taskDate" type="date" class="ninput" style="margin-bottom:12px;color:var(--text);background:var(--surface2)"/>
+      <button class="addbtn" onclick="addTask()">Agregar tarea</button>
+    </div>
+    <div class="slbl">Pendientes</div>
+    <div id="taskList"></div>
+    <div id="taskDoneSection" style="display:none">
+      <div class="slbl" style="margin-top:16px">Completadas</div>
+      <div id="taskDoneList"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- FIJO EDIT (simple prompt-style inline modal) -->
@@ -366,9 +413,10 @@ async function api(p){const r=await fetch(scriptUrl+'?'+new URLSearchParams(p));
 async function syncAll(){
   setSyncing(true);
   try{
-    const[gR,fR]=await Promise.all([api({action:'getGastos'}),api({action:'getFijos'})]);
+    const[gR,fR,tR]=await Promise.all([api({action:'getGastos'}),api({action:'getFijos'}),api({action:'getTareas'})]);
     if(gR.gastos)gastos=gR.gastos.map(g=>({...g,amount:+g.amount,monto_original:+(g.monto_original||g.amount)}));
     if(fR.fijos&&fR.fijos.length)fijos=fR.fijos.map(f=>({...f,monto:+f.monto}));
+    if(tR&&tR.tareas)tareas=tR.tareas;
     else{await api({action:'updateFijo',id:'renta',done:'false'});const fR2=await api({action:'getFijos'});if(fR2.fijos)fijos=fR2.fijos.map(f=>({...f,monto:+f.monto}));}
     renderAll(); setSyncing(false,true);
   }catch(e){setSyncing(false);toast('❌ Error de conexión');}
@@ -397,10 +445,11 @@ function showTab(name,el){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active'); el.classList.add('active');
   if(name==='resumen')renderResumen();
+  if(name==='tareas')renderTareas();
 }
 
 // ── RENDER ALL ─────────────────────────────────────────────────────────────────
-function renderAll(){renderSummary();renderCatGrid();renderMetodoGrid();renderExpenseList();renderFijos();}
+function renderAll(){renderSummary();renderCatGrid();renderMetodoGrid();renderExpenseList();renderFijos();renderTareas();}
 
 function renderSummary(){
   const t=todayStr();
@@ -481,6 +530,8 @@ function toggleActions(actionsId, toggleId, item){
 }
 
 let pendingDeleteId = null;
+let tareas = [];
+let taskResp = null;
 function confirmDelete(id, nombre, monto){
   pendingDeleteId = id;
   document.getElementById('delDesc').textContent = nombre + ' — ' + fmt(monto) + ' MXN. Esta acción no se puede deshacer.';
@@ -657,6 +708,132 @@ function renderResumen(){
   if(sA>0)pH+=`<div class="rrow"><span class="rn">— Sin asignar</span><span class="ra">${fmt(sA)}</span></div>`;
   document.getElementById('resPersonas').innerHTML=pH||'<div style="color:var(--muted);font-size:13px;padding:8px 0">Sin gastos</div>';
   document.getElementById('resFijos').innerHTML=fijos.map(f=>`<div class="rrow"><span class="rn">${f.done?'✅':'⏳'} ${f.name}</span><span class="ra" style="color:${f.done?'var(--green)':'var(--muted)'}">${fmt(f.monto)}</span></div>`).join('');
+}
+
+
+// ── TAREAS ─────────────────────────────────────────────────────────────────────
+function taskSelResp(r){
+  taskResp=r;
+  document.getElementById('taskBtnDiego').classList.toggle('sel',r==='Diego');
+  document.getElementById('taskBtnCami').classList.toggle('sel',r==='Cami');
+}
+
+function getDaysUntil(dateStr){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(dateStr+'T00:00:00');
+  return Math.round((d-today)/(1000*60*60*24));
+}
+
+function fmtDeadline(dateStr){
+  const[y,m,d]=dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function taskStatus(t){
+  if(t.done) return 'completada';
+  const days=getDaysUntil(t.fecha);
+  if(days<0) return 'vencida';
+  if(days<=3) return 'pronto';
+  return 'ok';
+}
+
+function renderTareas(){
+  const pending=tareas.filter(t=>!t.done).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  const done=tareas.filter(t=>t.done).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+
+  const list=document.getElementById('taskList');
+  list.innerHTML='';
+  if(!pending.length){
+    list.innerHTML='<div class="empty"><div class="big">✅</div><p>Sin tareas pendientes</p></div>';
+  } else {
+    pending.forEach(t=>{ list.appendChild(buildTaskEl(t)); });
+  }
+
+  const doneSection=document.getElementById('taskDoneSection');
+  const doneList=document.getElementById('taskDoneList');
+  if(done.length){
+    doneSection.style.display='block';
+    doneList.innerHTML='';
+    done.forEach(t=>{ doneList.appendChild(buildTaskEl(t)); });
+  } else {
+    doneSection.style.display='none';
+  }
+}
+
+function buildTaskEl(t){
+  const status=taskStatus(t);
+  const days=t.done?null:getDaysUntil(t.fecha);
+  let dateLabel=fmtDeadline(t.fecha);
+  if(!t.done){
+    if(days<0) dateLabel=`Venció hace ${Math.abs(days)}d`;
+    else if(days===0) dateLabel='Vence hoy';
+    else if(days===1) dateLabel='Vence mañana';
+    else if(days<=3) dateLabel=`Vence en ${days}d`;
+  }
+  const tid=t.id;
+  const div=document.createElement('div');
+  div.className='task-item'+(status!=='ok'?' '+status:'');
+  div.innerHTML=`
+    <div class="task-row">
+      <div class="task-check${t.done?' done':''}" onclick="toggleTask('${tid}')">${t.done?'✓':''}</div>
+      <div class="task-info">
+        <div class="task-desc${t.done?' done':''}">${t.desc}</div>
+        <div class="task-meta">
+          <span class="task-badge-resp ${t.resp.toLowerCase()}">${t.resp}</span>
+          <span class="task-badge-date${status==='vencida'?' vencida':status==='pronto'?' pronto':''}">${dateLabel}</span>
+        </div>
+      </div>
+    </div>
+    <div class="task-actions" style="display:none">
+      <button onclick="confirmDeleteTask('${tid}','${t.desc.replace(/'/g,"\'")}')" style="flex:1;padding:9px;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">🗑️ Eliminar</button>
+    </div>`;
+  // Toggle actions on row tap
+  div.querySelector('.task-row').addEventListener('click', function(){
+    const actions=div.querySelector('.task-actions');
+    const isOpen=actions.style.display!=='none';
+    document.querySelectorAll('.task-actions').forEach(a=>a.style.display='none');
+    if(!isOpen) actions.style.display='flex';
+  });
+  return div;
+}
+
+async function addTask(){
+  const desc=document.getElementById('taskDesc').value.trim();
+  const fecha=document.getElementById('taskDate').value;
+  if(!desc){toast('⚠️ Ingresa una descripción');return;}
+  if(!taskResp){toast('⚠️ Selecciona responsable');return;}
+  if(!fecha){toast('⚠️ Selecciona fecha límite');return;}
+  const t={id:Date.now().toString(),desc,resp:taskResp,fecha,done:false};
+  tareas.push(t);
+  document.getElementById('taskDesc').value='';
+  document.getElementById('taskDate').value='';
+  taskResp=null;
+  document.getElementById('taskBtnDiego').classList.remove('sel');
+  document.getElementById('taskBtnCami').classList.remove('sel');
+  renderTareas();
+  try{await api({action:'addTarea',...t});toast('✅ Tarea guardada');}
+  catch(e){toast('⚠️ Error al guardar');tareas=tareas.filter(x=>x.id!==t.id);renderTareas();}
+}
+
+async function toggleTask(id){
+  const t=tareas.find(x=>x.id===id);if(!t)return;
+  t.done=!t.done;renderTareas();
+  try{await api({action:'updateTarea',id,done:String(t.done)});}
+  catch(e){t.done=!t.done;renderTareas();toast('❌ Error');}
+}
+
+function confirmDeleteTask(id,desc){
+  pendingDeleteId=id;
+  document.getElementById('delDesc').textContent=desc+'. Esta acción no se puede deshacer.';
+  document.getElementById('delOverlay').classList.add('open');
+  // Override doDeleteConfirmed temporarily
+  window._deleteIsTask=true;
+}
+
+async function doDeleteTask(id){
+  const prev=[...tareas];tareas=tareas.filter(x=>x.id!==id);renderTareas();
+  try{await api({action:'deleteTarea',id});toast('🗑️ Eliminada');}
+  catch(e){tareas=prev;renderTareas();toast('❌ Error');}
 }
 
 // ── EXPORT ─────────────────────────────────────────────────────────────────────
