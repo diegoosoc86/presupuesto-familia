@@ -165,6 +165,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .task-actions{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2)}
 .task-add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
 .task-add-form h3{font-size:14px;font-weight:600;margin-bottom:12px}
+
+#taskEditSection{display:none;background:var(--surface);border:2px solid var(--accent);border-radius:var(--r);padding:16px;margin-bottom:16px}
+#taskEditSection h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -183,7 +186,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.6</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.7</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -298,6 +301,24 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <!-- TAREAS -->
   <div id="tab-tareas" class="page">
+    <!-- TASK EDIT FORM -->
+    <div id="taskEditSection">
+      <h3>✏️ Editando tarea</h3>
+      <div class="flbl">Descripción</div>
+      <input id="taskEditDesc" type="text" class="ninput" placeholder="Descripción..." maxlength="100" style="margin-bottom:12px"/>
+      <div class="flbl">Responsable</div>
+      <div class="qrow" style="margin-bottom:12px">
+        <div id="taskEditBtnDiego" class="qbtn diego" onclick="taskEditSelResp('Diego')">👦🏻 Diego</div>
+        <div id="taskEditBtnCami" class="qbtn cami" onclick="taskEditSelResp('Cami')">👩🏻‍🦱 Cami</div>
+      </div>
+      <div class="flbl">Fecha límite</div>
+      <input id="taskEditDate" type="date" class="ninput" style="margin-bottom:12px;color:var(--text);background:var(--surface2)"/>
+      <div style="display:flex;gap:8px">
+        <button onclick="cancelTaskEdit()" style="flex:1;padding:12px;background:var(--surface2);color:var(--muted);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Cancelar</button>
+        <button onclick="saveTaskEdit()" style="flex:1;padding:12px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Guardar cambios</button>
+      </div>
+    </div>
+
     <div class="task-add-form">
       <h3>Nueva tarea</h3>
       <div class="flbl">Descripción</div>
@@ -533,6 +554,8 @@ function toggleActions(actionsId, toggleId, item){
 let pendingDeleteId = null;
 let tareas = [];
 let taskResp = null;
+let taskEditId = null;
+let taskEditResp = null;
 function confirmDelete(id, nombre, monto){
   pendingDeleteId = id;
   document.getElementById('delDesc').textContent = nombre + ' — ' + fmt(monto) + ' MXN. Esta acción no se puede deshacer.';
@@ -835,6 +858,56 @@ async function doDeleteTask(id){
   const prev=[...tareas];tareas=tareas.filter(x=>x.id!==id);renderTareas();
   try{await api({action:'deleteTarea',id});toast('🗑️ Eliminada');}
   catch(e){tareas=prev;renderTareas();toast('❌ Error');}
+}
+
+
+// ── TASK EDIT ──────────────────────────────────────────────────────────────────
+function openTaskEdit(id) {
+  const t = tareas.find(x => x.id === id);
+  if (!t) return;
+  taskEditId = id;
+  taskEditResp = t.resp;
+  document.getElementById('taskEditDesc').value = t.desc;
+  document.getElementById('taskEditDate').value = t.fecha;
+  document.getElementById('taskEditBtnDiego').classList.toggle('sel', t.resp === 'Diego');
+  document.getElementById('taskEditBtnCami').classList.toggle('sel', t.resp === 'Cami');
+  document.getElementById('taskEditSection').style.display = 'block';
+  document.getElementById('taskEditSection').scrollIntoView({behavior:'smooth'});
+  // Close any open action panels
+  document.querySelectorAll('.task-actions').forEach(a => a.style.display = 'none');
+}
+
+function cancelTaskEdit() {
+  document.getElementById('taskEditSection').style.display = 'none';
+  taskEditId = null;
+  taskEditResp = null;
+}
+
+function taskEditSelResp(r) {
+  taskEditResp = r;
+  document.getElementById('taskEditBtnDiego').classList.toggle('sel', r === 'Diego');
+  document.getElementById('taskEditBtnCami').classList.toggle('sel', r === 'Cami');
+}
+
+async function saveTaskEdit() {
+  const desc = document.getElementById('taskEditDesc').value.trim();
+  const fecha = document.getElementById('taskEditDate').value;
+  if (!desc) { toast('⚠️ Ingresa una descripción'); return; }
+  if (!taskEditResp) { toast('⚠️ Selecciona responsable'); return; }
+  if (!fecha) { toast('⚠️ Selecciona fecha límite'); return; }
+  const savedId = taskEditId;
+  const idx = tareas.findIndex(x => x.id === savedId);
+  if (idx === -1) return;
+  const prev = {...tareas[idx]};
+  tareas[idx] = {...tareas[idx], desc, resp: taskEditResp, fecha};
+  cancelTaskEdit();
+  renderTareas();
+  try {
+    await api({action: 'updateTarea', id: savedId, desc, resp: taskEditResp, fecha});
+    toast('✅ Tarea actualizada');
+  } catch(e) {
+    tareas[idx] = prev; renderTareas(); toast('❌ Error al guardar');
+  }
 }
 
 // ── EXPORT ─────────────────────────────────────────────────────────────────────
