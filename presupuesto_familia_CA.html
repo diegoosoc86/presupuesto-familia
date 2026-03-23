@@ -186,7 +186,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.7</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.8</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -742,14 +742,32 @@ function taskSelResp(r){
   document.getElementById('taskBtnCami').classList.toggle('sel',r==='Cami');
 }
 
+function normalizeDate(val){
+  // Handles: Date object, "2026-03-24T06:00:00.000Z", "Mon Mar 24 2026", "2026-03-24"
+  if(!val) return '';
+  const d = val instanceof Date ? val : new Date(val);
+  if(!isNaN(d)){
+    // Use local date to avoid UTC offset issues (Querétaro = UTC-6)
+    const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  // Already YYYY-MM-DD
+  return String(val).slice(0,10);
+}
+
 function getDaysUntil(dateStr){
+  const norm=normalizeDate(dateStr);
+  if(!norm) return 999;
   const today=new Date(); today.setHours(0,0,0,0);
-  const d=new Date(dateStr+'T00:00:00');
-  return Math.round((d-today)/(1000*60*60*24));
+  const [y,m,d]=norm.split('-');
+  const target=new Date(+y, +m-1, +d);
+  return Math.round((target-today)/(1000*60*60*24));
 }
 
 function fmtDeadline(dateStr){
-  const[y,m,d]=dateStr.split('-');
+  const norm=normalizeDate(dateStr);
+  if(!norm) return '—';
+  const[y,m,d]=norm.split('-');
   return `${d}/${m}/${y}`;
 }
 
@@ -762,6 +780,7 @@ function taskStatus(t){
 }
 
 function renderTareas(){
+  tareas=tareas.map(t=>({...t,fecha:normalizeDate(t.fecha)}));
   const pending=tareas.filter(t=>!t.done).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
   const done=tareas.filter(t=>t.done).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
 
@@ -868,7 +887,7 @@ function openTaskEdit(id) {
   taskEditId = id;
   taskEditResp = t.resp;
   document.getElementById('taskEditDesc').value = t.desc;
-  document.getElementById('taskEditDate').value = t.fecha;
+  document.getElementById('taskEditDate').value = normalizeDate(t.fecha);
   document.getElementById('taskEditBtnDiego').classList.toggle('sel', t.resp === 'Diego');
   document.getElementById('taskEditBtnCami').classList.toggle('sel', t.resp === 'Cami');
   document.getElementById('taskEditSection').style.display = 'block';
