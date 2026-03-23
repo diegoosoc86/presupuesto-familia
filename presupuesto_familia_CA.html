@@ -186,7 +186,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.8</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.9</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -743,11 +743,18 @@ function taskSelResp(r){
 }
 
 function normalizeDate(val){
-  // Handles: Date object, "2026-03-24T06:00:00.000Z", "Mon Mar 24 2026", "2026-03-24"
   if(!val) return '';
+  // Handle Excel/Sheets serial number (e.g. 46738)
+  if(typeof val === 'number' || (typeof val === 'string' && /^\d{5}$/.test(val.trim()))){
+    // Sheets serial: days since Dec 30, 1899
+    const serial = typeof val === 'number' ? val : parseInt(val);
+    const d = new Date((serial - 25569) * 86400 * 1000);
+    const y=d.getUTCFullYear(), m=String(d.getUTCMonth()+1).padStart(2,'0'), day=String(d.getUTCDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  // Handle Date object or ISO string
   const d = val instanceof Date ? val : new Date(val);
   if(!isNaN(d)){
-    // Use local date to avoid UTC offset issues (Querétaro = UTC-6)
     const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
     return `${y}-${m}-${day}`;
   }
@@ -828,6 +835,7 @@ function buildTaskEl(t){
       </div>
     </div>
     <div class="task-actions" style="display:none">
+      <button onclick="openTaskEdit('${tid}')" style="flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">✏️ Editar</button>
       <button onclick="confirmDeleteTask('${tid}','${t.desc.replace(/'/g,"\'")}')" style="flex:1;padding:9px;background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer">🗑️ Eliminar</button>
     </div>`;
   // Toggle actions on row tap
