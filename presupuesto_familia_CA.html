@@ -295,20 +295,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <button class="expbtn" onclick="exportCSV()">📤 Exportar CSV</button>
     <div class="slink" onclick="resetSetup()">⚙️ Cambiar URL del script</div>
   </div>
-</div>
-
-
-<!-- CONFIRM DELETE MODAL -->
-<div id="delOverlay" class="del-overlay" onclick="if(event.target===this)closeDelModal()">
-  <div class="del-modal">
-    <div class="del-icon">🗑️</div>
-    <div class="del-title">¿Eliminar gasto?</div>
-    <div id="delDesc" class="del-desc">Esta acción no se puede deshacer.</div>
-    <div class="del-btns">
-      <button class="del-btn-cancel" onclick="closeDelModal()">Cancelar</button>
-      <button class="del-btn-confirm" onclick="doDeleteConfirmed()">Sí, eliminar</button>
-    </div>
-  </div>
 
   <!-- TAREAS -->
   <div id="tab-tareas" class="page">
@@ -332,6 +318,21 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <div id="taskDoneList"></div>
     </div>
   </div>
+</div>
+
+
+<!-- CONFIRM DELETE MODAL -->
+<div id="delOverlay" class="del-overlay" onclick="if(event.target===this)closeDelModal()">
+  <div class="del-modal">
+    <div class="del-icon">🗑️</div>
+    <div class="del-title">¿Eliminar gasto?</div>
+    <div id="delDesc" class="del-desc">Esta acción no se puede deshacer.</div>
+    <div class="del-btns">
+      <button class="del-btn-cancel" onclick="closeDelModal()">Cancelar</button>
+      <button class="del-btn-confirm" onclick="doDeleteConfirmed()">Sí, eliminar</button>
+    </div>
+  </div>
+
 
 </div>
 
