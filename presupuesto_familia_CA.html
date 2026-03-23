@@ -27,7 +27,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .hsub{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:10px;align-items:center}
 .mbadge{background:var(--accent);color:white;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;font-family:'DM Mono',monospace}
 .tabs{display:flex;background:var(--surface);padding:6px;gap:4px;border-bottom:1px solid var(--border);position:sticky;top:73px;z-index:9}
-.tab{flex:1;padding:9px 4px;border:none;border-radius:10px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;text-align:center}
+.tab{flex:1;padding:8px 2px;border:none;border-radius:10px;background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;text-align:center}
 .tab.active{background:var(--accent);color:white}
 .page{display:none;padding:16px}
 .page.active{display:block}
@@ -183,7 +183,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.5</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.6</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -194,7 +194,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 
   <div class="tabs">
-    <button class="tab active" onclick="showTab('registro',this)">➕ Registrar</button>
+    <button class="tab active" onclick="showTab('registro',this)">➕ Gastos</button>
     <button class="tab" onclick="showTab('fijos',this)">🏠 Fijos</button>
     <button class="tab" onclick="showTab('resumen',this)">📊 Resumen</button>
     <button class="tab" onclick="showTab('tareas',this)">✅ Tareas</button>
