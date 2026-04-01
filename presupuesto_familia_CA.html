@@ -165,9 +165,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .task-actions{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surface2)}
 .task-add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
 .task-add-form h3{font-size:14px;font-weight:600;margin-bottom:12px}
-
-#taskEditSection{display:none;background:var(--surface);border:2px solid var(--accent);border-radius:var(--r);padding:16px;margin-bottom:16px}
-#taskEditSection h3{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -186,7 +183,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.10</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.11</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -301,9 +298,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
   <!-- TAREAS -->
   <div id="tab-tareas" class="page">
-    <!-- TASK EDIT FORM -->
-    <div id="taskEditSection">
-      <h3>✏️ Editando tarea</h3>
+    <div id="taskEditSection" style="display:none;background:var(--surface);border:2px solid var(--accent);border-radius:var(--r);padding:16px;margin-bottom:16px">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:12px;color:var(--accent)">✏️ Editando tarea</h3>
       <div class="flbl">Descripción</div>
       <input id="taskEditDesc" type="text" class="ninput" placeholder="Descripción..." maxlength="100" style="margin-bottom:12px"/>
       <div class="flbl">Responsable</div>
@@ -318,7 +314,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <button onclick="saveTaskEdit()" style="flex:1;padding:12px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer">Guardar cambios</button>
       </div>
     </div>
-
     <div class="task-add-form">
       <h3>Nueva tarea</h3>
       <div class="flbl">Descripción</div>
@@ -567,13 +562,8 @@ function closeDelModal(){
 }
 function doDeleteConfirmed(){
   const idToDelete = pendingDeleteId;
-  const isTask = window._deleteIsTask === true;
-  window._deleteIsTask = false;
   closeDelModal();
-  if(idToDelete){
-    if(isTask) doDeleteTask(idToDelete);
-    else doDelete(idToDelete);
-  }
+  if(idToDelete) doDelete(idToDelete);
 }
 
 
@@ -750,22 +740,18 @@ function taskSelResp(r){
 function normalizeDate(val){
   if(!val) return '';
   const n = typeof val === 'number' ? val : (typeof val === 'string' && /^\d+(\.\d+)?$/.test(val.trim()) ? parseFloat(val) : NaN);
-  // Sheets serial number (between 30000 and 60000 = years ~1982–2064)
   if(!isNaN(n) && n > 30000 && n < 60000){
     const d = new Date(Math.round((n - 25569) * 86400 * 1000));
     const y=d.getUTCFullYear(), m=String(d.getUTCMonth()+1).padStart(2,'0'), day=String(d.getUTCDate()).padStart(2,'0');
     return `${y}-${m}-${day}`;
   }
-  // Date object
   if(val instanceof Date){
     const y=val.getFullYear(), m=String(val.getMonth()+1).padStart(2,'0'), day=String(val.getDate()).padStart(2,'0');
     return `${y}-${m}-${day}`;
   }
-  // ISO string or YYYY-MM-DD
   const s = String(val);
-  if(s.includes('T') || s.includes('Z')){
-    const d = new Date(s);
-    if(!isNaN(d)){
+  if(s.includes('T')||s.includes('Z')){
+    const d=new Date(s); if(!isNaN(d)){
       const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
       return `${y}-${m}-${day}`;
     }
@@ -778,7 +764,7 @@ function getDaysUntil(dateStr){
   if(!norm) return 999;
   const today=new Date(); today.setHours(0,0,0,0);
   const [y,m,d]=norm.split('-');
-  const target=new Date(+y, +m-1, +d);
+  const target=new Date(+y,+m-1,+d);
   return Math.round((target-today)/(1000*60*60*24));
 }
 
@@ -900,52 +886,39 @@ async function doDeleteTask(id){
 
 
 // ── TASK EDIT ──────────────────────────────────────────────────────────────────
-function openTaskEdit(id) {
-  const t = tareas.find(x => x.id === id);
-  if (!t) return;
-  taskEditId = id;
-  taskEditResp = t.resp;
-  document.getElementById('taskEditDesc').value = t.desc;
-  document.getElementById('taskEditDate').value = normalizeDate(t.fecha);
-  document.getElementById('taskEditBtnDiego').classList.toggle('sel', t.resp === 'Diego');
-  document.getElementById('taskEditBtnCami').classList.toggle('sel', t.resp === 'Cami');
-  document.getElementById('taskEditSection').style.display = 'block';
+function openTaskEdit(id){
+  const t=tareas.find(x=>x.id===id); if(!t)return;
+  taskEditId=id; taskEditResp=t.resp;
+  document.getElementById('taskEditDesc').value=t.desc;
+  document.getElementById('taskEditDate').value=normalizeDate(t.fecha);
+  document.getElementById('taskEditBtnDiego').classList.toggle('sel',t.resp==='Diego');
+  document.getElementById('taskEditBtnCami').classList.toggle('sel',t.resp==='Cami');
+  document.getElementById('taskEditSection').style.display='block';
   document.getElementById('taskEditSection').scrollIntoView({behavior:'smooth'});
-  // Close any open action panels
-  document.querySelectorAll('.task-actions').forEach(a => a.style.display = 'none');
+  document.querySelectorAll('.task-actions').forEach(a=>a.style.display='none');
 }
-
-function cancelTaskEdit() {
-  document.getElementById('taskEditSection').style.display = 'none';
-  taskEditId = null;
-  taskEditResp = null;
+function cancelTaskEdit(){
+  document.getElementById('taskEditSection').style.display='none';
+  taskEditId=null; taskEditResp=null;
 }
-
-function taskEditSelResp(r) {
-  taskEditResp = r;
-  document.getElementById('taskEditBtnDiego').classList.toggle('sel', r === 'Diego');
-  document.getElementById('taskEditBtnCami').classList.toggle('sel', r === 'Cami');
+function taskEditSelResp(r){
+  taskEditResp=r;
+  document.getElementById('taskEditBtnDiego').classList.toggle('sel',r==='Diego');
+  document.getElementById('taskEditBtnCami').classList.toggle('sel',r==='Cami');
 }
-
-async function saveTaskEdit() {
-  const desc = document.getElementById('taskEditDesc').value.trim();
-  const fecha = document.getElementById('taskEditDate').value;
-  if (!desc) { toast('⚠️ Ingresa una descripción'); return; }
-  if (!taskEditResp) { toast('⚠️ Selecciona responsable'); return; }
-  if (!fecha) { toast('⚠️ Selecciona fecha límite'); return; }
-  const savedId = taskEditId;
-  const idx = tareas.findIndex(x => x.id === savedId);
-  if (idx === -1) return;
-  const prev = {...tareas[idx]};
-  tareas[idx] = {...tareas[idx], desc, resp: taskEditResp, fecha};
-  cancelTaskEdit();
-  renderTareas();
-  try {
-    await api({action: 'updateTarea', id: savedId, desc, resp: taskEditResp, fecha});
-    toast('✅ Tarea actualizada');
-  } catch(e) {
-    tareas[idx] = prev; renderTareas(); toast('❌ Error al guardar');
-  }
+async function saveTaskEdit(){
+  const desc=document.getElementById('taskEditDesc').value.trim();
+  const fecha=document.getElementById('taskEditDate').value;
+  if(!desc){toast('⚠️ Ingresa una descripción');return;}
+  if(!taskEditResp){toast('⚠️ Selecciona responsable');return;}
+  if(!fecha){toast('⚠️ Selecciona fecha límite');return;}
+  const savedId=taskEditId;
+  const idx=tareas.findIndex(x=>x.id===savedId); if(idx===-1)return;
+  const prev={...tareas[idx]};
+  tareas[idx]={...tareas[idx],desc,resp:taskEditResp,fecha};
+  cancelTaskEdit(); renderTareas();
+  try{await api({action:'updateTarea',id:savedId,desc,resp:taskEditResp,fecha});toast('✅ Tarea actualizada');}
+  catch(e){tareas[idx]=prev;renderTareas();toast('❌ Error al guardar');}
 }
 
 // ── EXPORT ─────────────────────────────────────────────────────────────────────
