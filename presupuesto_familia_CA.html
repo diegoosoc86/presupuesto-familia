@@ -183,7 +183,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="header-top">
       <h1>💰 Presupuesto Familia CA</h1>
       <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.11</span>
+        <span style="font-size:10px;font-weight:600;background:rgba(74,222,128,0.15);color:var(--green);border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-family:'DM Mono',monospace">v2.12</span>
         <button id="syncBtn" class="syncbtn" onclick="syncAll()">⟳ Sync</button>
       </div>
     </div>
@@ -431,7 +431,12 @@ async function syncAll(){
   setSyncing(true);
   try{
     const[gR,fR,tR]=await Promise.all([api({action:'getGastos'}),api({action:'getFijos'}),api({action:'getTareas'})]);
-    if(gR.gastos)gastos=gR.gastos.map(g=>({...g,amount:+g.amount,monto_original:+(g.monto_original||g.amount)}));
+    if(gR.gastos){
+      const now=new Date(),curY=now.getFullYear(),curM=now.getMonth()+1;
+      gastos=gR.gastos
+        .map(g=>({...g,amount:+g.amount,monto_original:+(g.monto_original||g.amount)}))
+        .filter(g=>{const s=dStr(g.date);const[y,m]=s.split('-');return +y===curY&&+m===curM;});
+    }
     if(fR.fijos&&fR.fijos.length)fijos=fR.fijos.map(f=>({...f,monto:+f.monto}));
     if(tR&&tR.tareas)tareas=tR.tareas;
     else{await api({action:'updateFijo',id:'renta',done:'false'});const fR2=await api({action:'getFijos'});if(fR2.fijos)fijos=fR2.fijos.map(f=>({...f,monto:+f.monto}));}
